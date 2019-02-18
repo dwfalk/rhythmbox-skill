@@ -1,4 +1,4 @@
-# rhythmbox.dwfalk
+# rhythmbox-skill
 RhythmboxSkill for Mycroft
 ## About 
 Let Mycroft help you control Rhythmbox. When asked Mycroft interfaces with Rhythmbox to play selections from your music library. 
