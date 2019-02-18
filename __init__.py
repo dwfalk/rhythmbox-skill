@@ -73,7 +73,7 @@ class RhythmboxSkill(CommonPlaySkill):
             logger.info('CPS_match_query: ' + phrase)
         playlist, p_confidence = self._search_playlist(phrase)
         title, t_confidence = self._search_title(phrase)
-        if "playlist" in phrase and p_confindence > 65:
+        if "playlist" in phrase and p_confidence > 65:
             return (phrase, CPSMatchLevel.CATEGORY, {"playlist": playlist})
         elif t_confidence > p_confidence and t_confidence > 70:
             return (phrase, CPSMatchLevel.TITLE, {"title": title})
