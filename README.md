@@ -4,14 +4,14 @@ RhythmboxSkill for Mycroft
 Let Mycroft help you control Rhythmbox. When asked Mycroft interfaces with Rhythmbox to play selections from your music library. 
 
 ## Examples 
-* "stop Rhythmbox"
-* "play ** on Rhythmbox"
-* "play ** playlist on Rhythmbox"
+* "play **"
+* "play ** playlist"
 * "shuffle ** playlist on Rhythmbox"
-* "pause Rhythmbox"
-* "resume Rhythmbox"
-* "next Rhythmbox"
-* "previous Rhythmbox"
+* "pause"
+* "resume"
+* "next song"
+* "previous song"
+* "stop Rhythmbox"
 
 ## Credits 
 @dfwalk
