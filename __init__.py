@@ -73,10 +73,15 @@ class RhythmboxSkill(CommonPlaySkill):
             logger.info('CPS_match_query: ' + phrase)
         playlist, p_confidence = self._search_playlist(phrase)
         title, t_confidence = self._search_title(phrase)
+        artist, a_confidence = self._search_artist(phrase)
         if "playlist" in phrase and p_confidence > 65:
             return (phrase, CPSMatchLevel.CATEGORY, {"playlist": playlist})
-        elif t_confidence > p_confidence and t_confidence > 70:
+        if "artist" in phrase and a_confidence > 70:
+            return (phrase, CPSMatchLevel.ARTIST, {"artist": artist})
+        elif t_confidence > p_confidence and t_confidence > a_confidence and t_confidence > 70:
             return (phrase, CPSMatchLevel.TITLE, {"title": title})
+        elif a_confidence > p_confidence and a_confidence > 70:
+            return (phrase, CPSMatchLevel.ARTIST, {"artist": artist})
         elif p_confidence > 75:
             return (phrase, CPSMatchLevel.GENERIC, {"playlist": playlist})
         return None
@@ -87,6 +92,8 @@ class RhythmboxSkill(CommonPlaySkill):
             logger.info('CPS_start: ' + phrase)
         if 'title' in data:
             self._play_title(data['title'])
+        if 'artist' in data:
+            self._play_artist(data['artist'])
         elif 'playlist' in data:
             self._play_playlist(data['playlist'])
 
@@ -141,7 +148,7 @@ class RhythmboxSkill(CommonPlaySkill):
 
     def _search_title(self, phrase):
         utterance = phrase
-        strip_these = [" to", " on", " title", " song" " rhythmbox", " play"]
+        strip_these = [" to", " on", " title", " song", " rhythmbox", " play"]
         for words in strip_these:
             utterance = utterance.replace(words, " ")
         utterance.lstrip()
@@ -161,6 +168,31 @@ class RhythmboxSkill(CommonPlaySkill):
             title = probabilities[0]
             confidence = probabilities[1]
             return title, confidence
+        else:
+            return "Null", 0
+
+    def _search_artist(self, phrase):
+        utterance = phrase
+        strip_these = [" some", " by", " artist", " music", " songs", " rhythmbox", " play"]
+        for words in strip_these:
+            utterance = utterance.replace(words, " ")
+        utterance.lstrip()
+        if self.debug_mode:
+            logger.info("Artist Utterance: " + str(utterance))
+        tree = ET.parse(self.rhythmbox_database_xml)
+        root = tree.getroot()
+        artists = []
+        for entry in root.iter('entry'):
+            if entry.attrib["type"] == 'song':
+                artist = entry.find('artist').text
+                artists.append(artist)
+        probabilities = fuzz_process.extractOne(utterance, artists, scorer=fuzz.ratio)
+        if self.debug_mode:
+            logger.info("Artist Probabilities: " + str(probabilities))
+        if probabilities[1] > 70:
+            artist = probabilities[0]
+            confidence = probabilities[1]
+            return artist, confidence
         else:
             return "Null", 0
                 
@@ -199,10 +231,28 @@ class RhythmboxSkill(CommonPlaySkill):
                     x = entry.find('location').text[7:]
                     y = re.sub("%20", " ",x)
                     uri = pathlib.Path(y).as_uri()
-                    if self.debug_mode:
-                        logger.info("Play Title: " + uri)
                     song = "rhythmbox-client --play-uri={}".format(uri)
                     os.system(song)
+
+    def _play_artist(self, selection):
+        self.speak_dialog("selecting artist")
+        os.system("rhythmbox-client --stop")
+        os.system("rhythmbox-client --clear-queue")
+        songs = []
+        tree = ET.parse(self.rhythmbox_database_xml)
+        root = tree.getroot()
+        for entry in root.iter('entry'):
+            if entry.attrib["type"] == 'song':
+                if fuzz.ratio(selection, entry.find('artist').text) > 90:
+                    x = entry.find('location').text[7:]
+                    y = re.sub("%20", " ",x)
+                    uri = pathlib.Path(y).as_uri()
+                    songs.append(uri)
+        random.shuffle(songs)
+        for uri in songs:
+            song = "rhythmbox-client --enqueue {}".format(uri)
+            os.system(song)
+        os.system("rhythmbox-client --play")
         
 
     def stop(self):
