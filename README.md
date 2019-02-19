@@ -6,6 +6,7 @@ Let Mycroft help you control Rhythmbox. When asked Mycroft interfaces with Rhyth
 ## Examples 
 * "play **"
 * "play ** playlist"
+* "play some songs by **"
 * "shuffle ** playlist on Rhythmbox"
 * "pause"
 * "resume"
@@ -14,7 +15,7 @@ Let Mycroft help you control Rhythmbox. When asked Mycroft interfaces with Rhyth
 * "stop Rhythmbox"
 
 ## Credits 
-@dfwalk
+@dwfalk
 
 ## Dependencies
 mycroft-pip install fuzzywuzzy
