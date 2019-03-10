@@ -19,6 +19,7 @@ Let Mycroft help you control Rhythmbox. When asked Mycroft interfaces with Rhyth
 
 ## Dependencies
 mycroft-pip install fuzzywuzzy
+apt install rhythmbox
 
 ## Category
 **Information**
@@ -28,3 +29,4 @@ mycroft-pip install fuzzywuzzy
 #music
 #rhythmbox
 #mycroft
+#skill
