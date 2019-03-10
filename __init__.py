@@ -58,7 +58,7 @@ class RhythmboxSkill(CommonPlaySkill):
         self.register_intent(stop_rhythmbox_intent, self.handle_stop_rhythmbox_intent)
 
         shuffle_rhythmbox_intent = IntentBuilder("ShuffleRhythmboxIntent"). \
-        require("ShuffleKeyword").require("RhythmboxKeyword").build()
+        require("ShuffleKeyword").optionally("RhythmboxKeyword").build()
         self.register_intent(shuffle_rhythmbox_intent, self.handle_shuffle_rhythmbox_intent)
 
         # Messages from the skill-playback-control / common Audio service
@@ -78,11 +78,11 @@ class RhythmboxSkill(CommonPlaySkill):
             return (phrase, CPSMatchLevel.CATEGORY, {"playlist": playlist})
         if "artist" in phrase and a_confidence > 70:
             return (phrase, CPSMatchLevel.ARTIST, {"artist": artist})
-        elif t_confidence > p_confidence and t_confidence > a_confidence and t_confidence > 70:
+        if t_confidence > p_confidence and t_confidence > a_confidence and t_confidence > 70:
             return (phrase, CPSMatchLevel.TITLE, {"title": title})
-        elif a_confidence > p_confidence and a_confidence > 70:
+        if a_confidence > p_confidence and a_confidence > 70:
             return (phrase, CPSMatchLevel.ARTIST, {"artist": artist})
-        elif p_confidence > 75:
+        if p_confidence > 75:
             return (phrase, CPSMatchLevel.GENERIC, {"playlist": playlist})
         return None
 
@@ -173,7 +173,7 @@ class RhythmboxSkill(CommonPlaySkill):
 
     def _search_artist(self, phrase):
         utterance = phrase
-        strip_these = [" some", " by", " artist", " music", " songs", " rhythmbox", " play"]
+        strip_these = ["some ", "something ", " music", " songs", " by", " from", " artist", " rhythmbox", " play"]
         for words in strip_these:
             utterance = utterance.replace(words, " ")
         utterance.lstrip()
@@ -231,8 +231,9 @@ class RhythmboxSkill(CommonPlaySkill):
                     x = entry.find('location').text[7:]
                     y = re.sub("%20", " ",x)
                     uri = pathlib.Path(y).as_uri()
-                    song = "rhythmbox-client --play-uri={}".format(uri)
+                    song = "rhythmbox-client --enqueue {}".format(uri)
                     os.system(song)
+                    os.system("rhythmbox-client --play")
 
     def _play_artist(self, selection):
         self.speak_dialog("selecting artist")
