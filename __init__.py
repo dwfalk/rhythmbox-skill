@@ -30,12 +30,14 @@ from mycroft.util.log import getLogger
 from mycroft.audio import wait_while_speaking
 from mycroft.skills.common_play_skill import CommonPlaySkill, CPSMatchLevel
 from os.path import expanduser
+from os.path import isabs
 from fuzzywuzzy import fuzz, process as fuzz_process
 
 import re
 import os
 import pathlib
 import random
+import time
 import xml.etree.cElementTree as ET
 
 __author__ = 'dwfalk'
@@ -197,7 +199,6 @@ class RhythmboxSkill(CommonPlaySkill):
             return "Null", 0
                 
     def _play_playlist(self, selection):
-        self.speak_dialog("selecting playlist")
         songs = []
         tree = ET.parse(self.rhythmbox_playlist_xml)
         root = tree.getroot()
@@ -209,14 +210,22 @@ class RhythmboxSkill(CommonPlaySkill):
                 for location in playlist.iter('location'):
                     x = location.text[7:]
                     y = re.sub("%20", " ",x)
-                    uri = pathlib.Path(y).as_uri()
-                    songs.append(uri)
+                    if isabs(y) == True:
+                        uri = pathlib.Path(y).as_uri()
+                        songs.append(uri)
                 if self.shuffle:
                     random.shuffle(songs)
                 for uri in songs:
                     song = "rhythmbox-client --enqueue {}".format(uri)
                     os.system(song)
-                os.system("rhythmbox-client --play")
+                if len(songs) > 0:
+                    self.speak_dialog("selecting playlist")
+                    time.sleep(1)
+                    os.system("rhythmbox-client --play")
+                else:
+                    self.speak_dialog("Sorry, I don't know how to play that, yet")
+                    if self.debug_mode:
+                        logger.info("Cannot play relative paths.")
             if len(songs) > 0:
                 break
 
@@ -230,13 +239,17 @@ class RhythmboxSkill(CommonPlaySkill):
                     os.system("rhythmbox-client --clear-queue")
                     x = entry.find('location').text[7:]
                     y = re.sub("%20", " ",x)
-                    uri = pathlib.Path(y).as_uri()
-                    song = "rhythmbox-client --enqueue {}".format(uri)
-                    os.system(song)
-                    os.system("rhythmbox-client --play")
+                    if isabs(y) == True:
+                        uri = pathlib.Path(y).as_uri()
+                        song = "rhythmbox-client --enqueue {}".format(uri)
+                        os.system(song)
+                        os.system("rhythmbox-client --play")
+                    else:
+                        self.speak_dialog("Sorry, I don't know how to play that, yet")
+                        if self.debug_mode:
+                            logger.info("Cannot play relative paths.")
 
     def _play_artist(self, selection):
-        self.speak_dialog("selecting artist")
         os.system("rhythmbox-client --stop")
         os.system("rhythmbox-client --clear-queue")
         songs = []
@@ -247,13 +260,21 @@ class RhythmboxSkill(CommonPlaySkill):
                 if fuzz.ratio(selection, entry.find('artist').text) > 90:
                     x = entry.find('location').text[7:]
                     y = re.sub("%20", " ",x)
-                    uri = pathlib.Path(y).as_uri()
-                    songs.append(uri)
+                    if isabs(y) == True:
+                        uri = pathlib.Path(y).as_uri()
+                        songs.append(uri)
         random.shuffle(songs)
         for uri in songs:
             song = "rhythmbox-client --enqueue {}".format(uri)
             os.system(song)
-        os.system("rhythmbox-client --play")
+        if len(songs) > 0:
+            self.speak_dialog("selecting artist")
+            time.sleep(1)
+            os.system("rhythmbox-client --play")
+        else:
+            self.speak_dialog("Sorry, I don't know how to play that, yet")
+            if self.debug_mode:
+                logger.info("Cannot play relative paths.")
         
 
     def stop(self):
