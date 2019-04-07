@@ -29,11 +29,10 @@ from mycroft.skills.core import MycroftSkill
 from mycroft.util.log import getLogger
 from mycroft.audio import wait_while_speaking
 from mycroft.skills.common_play_skill import CommonPlaySkill, CPSMatchLevel
-from os.path import expanduser
-from os.path import isabs
+from os.path import expanduser, isabs
+from urllib.parse import unquote
 from fuzzywuzzy import fuzz, process as fuzz_process
 
-import re
 import os
 import pathlib
 import random
@@ -209,7 +208,7 @@ class RhythmboxSkill(CommonPlaySkill):
                 os.system("rhythmbox-client --clear-queue")
                 for location in playlist.iter('location'):
                     x = location.text[7:]
-                    y = re.sub("%20", " ",x)
+                    y = unquote(x)
                     if isabs(y) == True:
                         uri = pathlib.Path(y).as_uri()
                         songs.append(uri)
@@ -230,6 +229,9 @@ class RhythmboxSkill(CommonPlaySkill):
                 break
 
     def _play_title(self, selection):
+        strip_these = [" to", " on", " title", " song", " rhythmbox", " play"]
+        for words in strip_these:
+            selection = selection.replace(words, " ")
         tree = ET.parse(self.rhythmbox_database_xml)
         root = tree.getroot()
         for entry in root.iter('entry'):
@@ -238,7 +240,7 @@ class RhythmboxSkill(CommonPlaySkill):
                     os.system("rhythmbox-client --stop")
                     os.system("rhythmbox-client --clear-queue")
                     x = entry.find('location').text[7:]
-                    y = re.sub("%20", " ",x)
+                    y = unquote(x)
                     if isabs(y) == True:
                         uri = pathlib.Path(y).as_uri()
                         song = "rhythmbox-client --enqueue {}".format(uri)
@@ -250,6 +252,9 @@ class RhythmboxSkill(CommonPlaySkill):
                             logger.info("Cannot play relative paths.")
 
     def _play_artist(self, selection):
+        strip_these = ["some ", "something ", " music", " songs", " by", " from", " artist", " rhythmbox", " play"]
+        for words in strip_these:
+            selection = selection.replace(words, " ")
         os.system("rhythmbox-client --stop")
         os.system("rhythmbox-client --clear-queue")
         songs = []
@@ -259,7 +264,7 @@ class RhythmboxSkill(CommonPlaySkill):
             if entry.attrib["type"] == 'song':
                 if fuzz.ratio(selection, entry.find('artist').text) > 90:
                     x = entry.find('location').text[7:]
-                    y = re.sub("%20", " ",x)
+                    y = unquote(x)
                     if isabs(y) == True:
                         uri = pathlib.Path(y).as_uri()
                         songs.append(uri)
