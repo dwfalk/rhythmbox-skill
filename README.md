@@ -6,7 +6,7 @@ Let Mycroft help you control Rhythmbox. When asked Mycroft interfaces with Rhyth
 ## Examples 
 * "play **"
 * "play ** playlist"
-* "play some songs by **"
+* "play something by **"
 * "shuffle ** playlist"
 * "pause"
 * "resume"
