@@ -67,7 +67,6 @@ class RhythmboxSkill(CommonPlaySkill):
         self.add_event('mycroft.audio.service.resume', self.handle_canned_resume)
         self.add_event('mycroft.audio.service.next', self.handle_canned_next_song)
         self.add_event('mycroft.audio.service.prev', self.handle_canned_previous_song)
-        self.add_event('mycroft.audio.service.stop', self.handle_stop_rhythmbox_intent)
 
     def CPS_match_query_phrase(self, phrase):
         if self.debug_mode:
@@ -77,8 +76,8 @@ class RhythmboxSkill(CommonPlaySkill):
         artist, a_confidence = self._search_artist(phrase)
         if "playlist" in phrase and p_confidence > 65:
             return (phrase, CPSMatchLevel.CATEGORY, {"playlist": playlist})
-        if "artist" in phrase and a_confidence > 70:
-            return (phrase, CPSMatchLevel.ARTIST, {"artist": artist})
+        if self._multi_artist(phrase) and a_confidence > 75:
+            return (phrase, CPSMatchLevel.MULTI_KEY, {"artist": artist})
         if t_confidence > p_confidence and t_confidence > a_confidence and t_confidence > 70:
             return (phrase, CPSMatchLevel.TITLE, {"title": title})
         if a_confidence > p_confidence and a_confidence > 70:
@@ -106,11 +105,8 @@ class RhythmboxSkill(CommonPlaySkill):
         self.shuffle = True
         utterance = message.utterance_remainder()
         playlist, confidence = self._search_playlist(utterance)
-        if playlist: 
-            if "playlist" in utterance:
-                self._play_playlist(playlist)
-            else:
-                self._play_playlist(playlist)
+        if confidence > 75: 
+            self._play_playlist(playlist)
 
     def handle_canned_pause(self, message):
         os.system("rhythmbox-client --pause")
@@ -124,9 +120,30 @@ class RhythmboxSkill(CommonPlaySkill):
     def handle_canned_previous_song(self, message):
         os.system("rhythmbox-client --previous")
 
+    def _multi_artist(self, phrase):
+        if "on rhythmbox" in phrase:
+            return True
+        if "music by" in phrase:
+            return True
+        if "tunes by" in phrase:
+            return True
+        if "a song by" in phrase:
+            return True
+        if "some songs by" in phrase:
+            return True
+        if "music from" in phrase:
+            return True
+        if "tunes from" in phrase:
+            return True
+        if "a song from" in phrase:
+            return True
+        if "some songs from" in phrase:
+            return True
+        return False
+
     def _search_playlist(self, phrase):
         utterance = phrase
-        strip_these = [" to", " on", " playlist", " rhythmbox", " play"]
+        strip_these = [" playlist", "on rhythmbox"]
         for words in strip_these:
             utterance = utterance.replace(words, " ")
         utterance.lstrip()
@@ -149,7 +166,7 @@ class RhythmboxSkill(CommonPlaySkill):
 
     def _search_title(self, phrase):
         utterance = phrase
-        strip_these = [" to", " on", " title", " song", " rhythmbox", " play"]
+        strip_these = ["title ", "song ", " on rhythmbox"]
         for words in strip_these:
             utterance = utterance.replace(words, " ")
         utterance.lstrip()
@@ -174,7 +191,7 @@ class RhythmboxSkill(CommonPlaySkill):
 
     def _search_artist(self, phrase):
         utterance = phrase
-        strip_these = ["some ", "something ", " music", " songs", " by", " from", " artist", " rhythmbox", " play"]
+        strip_these = ["some ", "something ", "music ", "songs ", "tunes ", "by ", "from ", "artist ", " rhythmbox"]
         for words in strip_these:
             utterance = utterance.replace(words, " ")
         utterance.lstrip()
@@ -229,9 +246,6 @@ class RhythmboxSkill(CommonPlaySkill):
                 break
 
     def _play_title(self, selection):
-        strip_these = [" to", " on", " title", " song", " rhythmbox", " play"]
-        for words in strip_these:
-            selection = selection.replace(words, " ")
         tree = ET.parse(self.rhythmbox_database_xml)
         root = tree.getroot()
         for entry in root.iter('entry'):
@@ -252,7 +266,7 @@ class RhythmboxSkill(CommonPlaySkill):
                             logger.info("Cannot play relative paths.")
 
     def _play_artist(self, selection):
-        strip_these = ["some ", "something ", " music", " songs", " by", " from", " artist", " rhythmbox", " play"]
+        strip_these = ["some ", "something ", " music", " songs", "tunes", " by", " from", " artist", " rhythmbox", " play"]
         for words in strip_these:
             selection = selection.replace(words, " ")
         os.system("rhythmbox-client --stop")
