@@ -14,6 +14,7 @@ Let Mycroft help you control Rhythmbox. When asked Mycroft interfaces with Rhyth
 * "previous song"
 * "stop Rhythmbox"
 * "play some music by Huey Lewis and the News"
+* "play Feelin' Alright by Joe Cocker"
 
 ## Credits 
 @dwfalk
