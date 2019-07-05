@@ -71,6 +71,10 @@ class RhythmboxSkill(CommonPlaySkill):
     def CPS_match_query_phrase(self, phrase):
         if self.debug_mode:
             logger.info('CPS_match_query: ' + phrase)
+        if "by" in phrase:
+            title, artist = self._search_by(phrase)
+            if title != "Null":
+                return (phrase, CPSMatchLevel.MULTI_KEY, {"by": artist, "title": title})
         playlist, p_confidence = self._search_playlist(phrase)
         title, t_confidence = self._search_title(phrase)
         artist, a_confidence = self._search_artist(phrase)
@@ -90,6 +94,9 @@ class RhythmboxSkill(CommonPlaySkill):
         self.shuffle = False
         if self.debug_mode:
             logger.info('CPS_start: ' + phrase)
+        if 'by' in data:
+            self._play_by(data['by'], data['title'])
+            return None
         if 'title' in data:
             self._play_title(data['title'])
         if 'artist' in data:
@@ -213,7 +220,31 @@ class RhythmboxSkill(CommonPlaySkill):
             return artist, confidence
         else:
             return "Null", 0
-                
+       
+    def _search_by(self, phrase):
+        utterance = phrase
+        if self.debug_mode:
+            logger.info("By Utterance: " + str(utterance))
+        tree = ET.parse(self.rhythmbox_database_xml)
+        root = tree.getroot()
+        bys = []
+        for entry in root.iter('entry'):
+            if entry.attrib["type"] == 'song':
+                title = entry.find('title').text
+                artist = entry.find('artist').text
+                bys.append(title + " by " + artist)
+        probabilities = fuzz_process.extractOne(utterance, bys, scorer=fuzz.ratio)
+        if self.debug_mode:
+            logger.info("By Probabilities: " + str(probabilities))
+        if probabilities[1] > 85:
+            match = probabilities[0]
+            x = match.rfind('by')
+            title = match[:x-1]
+            artist = match[x+3:]
+            return title, artist
+        else:
+            return "Null", "Null"
+         
     def _play_playlist(self, selection):
         songs = []
         tree = ET.parse(self.rhythmbox_playlist_xml)
@@ -295,6 +326,26 @@ class RhythmboxSkill(CommonPlaySkill):
             if self.debug_mode:
                 logger.info("Cannot play relative paths.")
         
+    def _play_by(self, artist, title):
+        tree = ET.parse(self.rhythmbox_database_xml)
+        root = tree.getroot()
+        for entry in root.iter('entry'):
+            if entry.attrib["type"] == 'song':
+                if artist == entry.find('artist').text:
+                    if title == entry.find('title').text:
+                       os.system("rhythmbox-client --stop")
+                       os.system("rhythmbox-client --clear-queue")
+                       x = entry.find('location').text[7:]
+                       y = unquote(x)
+                       if isabs(y) == True:
+                          uri = pathlib.Path(y).as_uri()
+                          song = "rhythmbox-client --enqueue {}".format(uri)
+                          os.system(song)
+                          os.system("rhythmbox-client --play")
+                       else:
+                          self.speak_dialog("Sorry, I don't know how to play that, yet")
+                          if self.debug_mode:
+                             logger.info("Cannot play relative paths.")
 
     def stop(self):
         pass
