@@ -52,6 +52,10 @@ class RhythmboxSkill(CommonPlaySkill):
         self.rhythmbox_database_xml = expanduser('~/.local/share/rhythmbox/rhythmdb.xml')
         self.shuffle = False
         self.debug_mode = True
+        self.playlists = [] 
+        self.titles = [] 
+        self.artists = [] 
+        self.bys = [] 
 
     def initialize(self):
         stop_rhythmbox_intent = IntentBuilder("StopRhythmboxIntent"). \
@@ -71,24 +75,38 @@ class RhythmboxSkill(CommonPlaySkill):
     def CPS_match_query_phrase(self, phrase):
         if self.debug_mode:
             logger.info('CPS_match_query: ' + phrase)
+        if not self.playlists and not self.titles and not self.artists and not self.bys:
+            self._build_cache()
         if "by" in phrase:
-            title, artist = self._search_by(phrase)
-            if title != "Null":
-                return (phrase, CPSMatchLevel.MULTI_KEY, {"by": artist, "title": title})
+            if not self._general_artist_request(phrase):
+                title, artist = self._search_by(phrase)
+                if title != "Null":
+                    return (phrase, CPSMatchLevel.MULTI_KEY, {"by": artist, "title": title})
         playlist, p_confidence = self._search_playlist(phrase)
         title, t_confidence = self._search_title(phrase)
         artist, a_confidence = self._search_artist(phrase)
-        if "playlist" in phrase and p_confidence > 65:
-            return (phrase, CPSMatchLevel.CATEGORY, {"playlist": playlist})
-        if self._multi_artist(phrase) and a_confidence > 75:
-            return (phrase, CPSMatchLevel.MULTI_KEY, {"artist": artist})
-        if t_confidence > p_confidence and t_confidence > a_confidence and t_confidence > 70:
-            return (phrase, CPSMatchLevel.TITLE, {"title": title})
-        if a_confidence > p_confidence and a_confidence > 70:
-            return (phrase, CPSMatchLevel.ARTIST, {"artist": artist})
-        if p_confidence > 75:
-            return (phrase, CPSMatchLevel.GENERIC, {"playlist": playlist})
-        return None
+        if "on rhythmbox" in phrase:
+            if "playlist" in phrase and p_confidence > 65:
+                return (phrase, CPSMatchLevel.MULTI_KEY, {"playlist": playlist})
+            if t_confidence > p_confidence and t_confidence > a_confidence and t_confidence > 70:
+                return (phrase, CPSMatchLevel.MULTI_KEY, {"title": title})
+            if a_confidence > p_confidence and a_confidence > 70:
+                return (phrase, CPSMatchLevel.MULTI_KEY, {"artist": artist})
+            if p_confidence > 75:
+                return (phrase, CPSMatchLevel.MULTI_KEY, {"playlist": playlist})
+            return None
+        else:
+            if "playlist" in phrase and p_confidence > 65:
+                return (phrase, CPSMatchLevel.CATEGORY, {"playlist": playlist})
+            if self._general_artist_request(phrase) and a_confidence > 75:
+                return (phrase, CPSMatchLevel.MULTI_KEY, {"artist": artist})
+            if t_confidence > p_confidence and t_confidence > a_confidence and t_confidence > 70:
+                return (phrase, CPSMatchLevel.TITLE, {"title": title})
+            if a_confidence > p_confidence and a_confidence > 70:
+                return (phrase, CPSMatchLevel.ARTIST, {"artist": artist})
+            if p_confidence > 75:
+                return (phrase, CPSMatchLevel.GENERIC, {"playlist": playlist})
+            return None
 
     def CPS_start(self, phrase, data):
         self.shuffle = False
@@ -127,8 +145,24 @@ class RhythmboxSkill(CommonPlaySkill):
     def handle_canned_previous_song(self, message):
         os.system("rhythmbox-client --previous")
 
-    def _multi_artist(self, phrase):
-        if "on rhythmbox" in phrase:
+    def _build_cache(self):      
+        tree = ET.parse(self.rhythmbox_database_xml)
+        root = tree.getroot()
+        for entry in root.iter('entry'): 
+            if entry.attrib["type"] == 'song':
+                artist = entry.find('artist').text
+                title = entry.find('title').text
+                self.titles.append(title)
+                self.bys.append(title + " by " + artist)
+                if artist not in self.artists:
+                    self.artists.append(artist)
+        tree = ET.parse(self.rhythmbox_playlist_xml)
+        root = tree.getroot()
+        for playlist in root.iter('playlist'):
+            self.playlists.append(playlist.get('name'))
+                
+    def _general_artist_request(self, phrase):
+        if "something by" in phrase:
             return True
         if "music by" in phrase:
             return True
@@ -156,12 +190,7 @@ class RhythmboxSkill(CommonPlaySkill):
         utterance.lstrip()
         if self.debug_mode:
             logger.info("Playlist Utterance: " + str(utterance))
-        tree = ET.parse(self.rhythmbox_playlist_xml)
-        root = tree.getroot()
-        playlists = []
-        for playlist in root.iter('playlist'):
-            playlists.append(playlist.get('name'))
-        probabilities = fuzz_process.extractOne(utterance, playlists, scorer=fuzz.ratio)
+        probabilities = fuzz_process.extractOne(utterance, self.playlists, scorer=fuzz.ratio)
         if self.debug_mode:
             logger.info("Playlist Probabilities: " + str(probabilities))
         if probabilities[1] > 65:
@@ -179,14 +208,7 @@ class RhythmboxSkill(CommonPlaySkill):
         utterance.lstrip()
         if self.debug_mode:
             logger.info("Title Utterance: " + str(utterance))
-        tree = ET.parse(self.rhythmbox_database_xml)
-        root = tree.getroot()
-        titles = []
-        for entry in root.iter('entry'):
-            if entry.attrib["type"] == 'song':
-                title = entry.find('title').text
-                titles.append(title)
-        probabilities = fuzz_process.extractOne(utterance, titles, scorer=fuzz.ratio)
+        probabilities = fuzz_process.extractOne(utterance, self.titles, scorer=fuzz.ratio)
         if self.debug_mode:
             logger.info("Title Probabilities: " + str(probabilities))
         if probabilities[1] > 70:
@@ -198,20 +220,13 @@ class RhythmboxSkill(CommonPlaySkill):
 
     def _search_artist(self, phrase):
         utterance = phrase
-        strip_these = ["some ", "something ", "music ", "songs ", "tunes ", "by ", "from ", "artist ", " rhythmbox"]
+        strip_these = ["some ", "something ", "music ", "songs ", "tunes ", "by ", "from ", "artist ", " on rhythmbox"]
         for words in strip_these:
             utterance = utterance.replace(words, " ")
         utterance.lstrip()
         if self.debug_mode:
             logger.info("Artist Utterance: " + str(utterance))
-        tree = ET.parse(self.rhythmbox_database_xml)
-        root = tree.getroot()
-        artists = []
-        for entry in root.iter('entry'):
-            if entry.attrib["type"] == 'song':
-                artist = entry.find('artist').text
-                artists.append(artist)
-        probabilities = fuzz_process.extractOne(utterance, artists, scorer=fuzz.ratio)
+        probabilities = fuzz_process.extractOne(utterance, self.artists, scorer=fuzz.ratio)
         if self.debug_mode:
             logger.info("Artist Probabilities: " + str(probabilities))
         if probabilities[1] > 70:
@@ -225,15 +240,7 @@ class RhythmboxSkill(CommonPlaySkill):
         utterance = phrase
         if self.debug_mode:
             logger.info("By Utterance: " + str(utterance))
-        tree = ET.parse(self.rhythmbox_database_xml)
-        root = tree.getroot()
-        bys = []
-        for entry in root.iter('entry'):
-            if entry.attrib["type"] == 'song':
-                title = entry.find('title').text
-                artist = entry.find('artist').text
-                bys.append(title + " by " + artist)
-        probabilities = fuzz_process.extractOne(utterance, bys, scorer=fuzz.ratio)
+        probabilities = fuzz_process.extractOne(utterance, self.bys, scorer=fuzz.ratio)
         if self.debug_mode:
             logger.info("By Probabilities: " + str(probabilities))
         if probabilities[1] > 85:
