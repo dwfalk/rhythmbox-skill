@@ -1,12 +1,13 @@
-# rhythmbox-skill
-RhythmboxSkill for Mycroft
+# rhythmbox-player-skill
+Rhythmbox Player for Mycroft
 ## About 
 Let Mycroft help you control Rhythmbox. When asked Mycroft interfaces with Rhythmbox to play selections from your music library. 
 
 ## Examples 
-* "play **"
-* "play ** playlist"
-* "play something by **"
+* "play rock" - plays any genre with "rock" in it (e.g. rock, rock/pop, rock/country)
+* "play **" - plays closest match (genre/artist/album/song)
+* "play ** playlist" - by playlist
+* "play something by **" - by artist
 * "shuffle ** playlist"
 * "pause"
 * "resume"
@@ -19,6 +20,7 @@ Let Mycroft help you control Rhythmbox. When asked Mycroft interfaces with Rhyth
 
 ## Credits 
 @dwfalk
+@unwisebard / Andrew Buis
 
 ## Dependencies
 mycroft-pip install fuzzywuzzy
@@ -26,7 +28,7 @@ mycroft-pip install fuzzywuzzy
 apt install rhythmbox
 
 ## Category
-**Information**
+**Entertainment**
 
 ## Tags
 #songs
@@ -34,3 +36,6 @@ apt install rhythmbox
 #rhythmbox
 #mycroft
 #skill
+
+To install:
+~/mycroft-core/bin/mycroft-msm install https://github.com/AndrewBuis/rhythmbox-player
