@@ -112,8 +112,8 @@ class RhythmboxPlayerSkill(CommonPlaySkill):
         if "playlist" not in phrase and a_confidence >= 95:
             return (phrase, CPSMatchLevel.ARTIST, {"artist": artist})
         album, b_confidence = self._search_album(phrase)
-        # Parsed all properties, no high confidence property.phrase
-        # Do lower confidence returns.
+        # Parsed all properties, no high confidence property except perhaps album.
+        # Do lower confidence returns now.
         if "on rhythmbox" in phrase:
             if "playlist" in phrase and p_confidence >= 65:
                 return (phrase, CPSMatchLevel.MULTI_KEY, {"playlist": playlist})
