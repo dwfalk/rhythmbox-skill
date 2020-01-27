@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 #
-# Copyright (c) 2020 Andrew Buis
+# Copyright (c) 2020 Donald Falk, @gras64, Andrew Buis
 # Initial programing from Donald Falk here: https://github.com/dwfalk/rhythmbox-skill
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -40,15 +40,15 @@ import random
 import time
 import xml.etree.cElementTree as ET
 
-__author__ = 'andrewbuis'
+__author__ = 'dwfalk, gras64, andrewbuis'
 
 logger = getLogger(__name__)
 
 
-class RhythmboxPlayerSkill(CommonPlaySkill):
+class RhythmboxSkill(CommonPlaySkill):
 
     def __init__(self):
-        super(RhythmboxPlayerSkill, self).__init__(name="RhythmboxPlayerSkill")
+        super(RhythmboxSkill, self).__init__(name="RhythmboxSkill")
         self.rhythmbox_playlist_xml = expanduser('~/.local/share/rhythmbox/playlists.xml')
         self.rhythmbox_database_xml = expanduser('~/.local/share/rhythmbox/rhythmdb.xml')
         self.shuffle = False
@@ -549,4 +549,4 @@ class RhythmboxPlayerSkill(CommonPlaySkill):
 
 
 def create_skill():
-    return RhythmboxPlayerSkill()
+    return RhythmboxSkill()

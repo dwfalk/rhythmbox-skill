@@ -1,4 +1,4 @@
-# rhythmbox-player-skill
+# rhythmbox-skill
 Rhythmbox Player for Mycroft
 ## About 
 Let Mycroft help you control Rhythmbox. When asked Mycroft interfaces with Rhythmbox to play selections from your music library. 
@@ -19,8 +19,9 @@ Let Mycroft help you control Rhythmbox. When asked Mycroft interfaces with Rhyth
 * "play Greatist Hits album by Heart"
 
 ## Credits 
-@dwfalk
-@unwisebard / Andrew Buis
+@dwfalk - Base project
+@gras64 - German Translations
+@unwisebard - Ability to search/play by genre
 
 ## Dependencies
 mycroft-pip install fuzzywuzzy
