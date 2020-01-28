@@ -100,18 +100,22 @@ class RhythmboxSkill(CommonPlaySkill):
         # If we have a high confidence playlist, start playing
         # without parsing additional properties.
         if p_confidence >= 95:
-            return (phrase, CPSMatchLevel.GENERIC, {"playlist": playlist})
-        title, t_confidence = self._search_title(phrase)
-        # If we have a high confidence title, start playing
-        # without parsing additional properties.
-        if "playlist" not in phrase and t_confidence >= 95:
-            return (phrase, CPSMatchLevel.TITLE, {"title": title})
+            return (phrase, CPSMatchLevel.CATEGORY, {"playlist": playlist})
         artist, a_confidence = self._search_artist(phrase)
         # If we have a high confidence artist, start playing
         # without parsing additional properties.
         if "playlist" not in phrase and a_confidence >= 95:
             return (phrase, CPSMatchLevel.ARTIST, {"artist": artist})
         album, b_confidence = self._search_album(phrase)
+        # If we have a high confidence album, start playing
+        # without parsing additional properties.
+        if "playlist" not in phrase and b_confidence >= 95:
+            return (phrase, CPSMatchLevel.GENERIC, {"album": album})
+        title, t_confidence = self._search_title(phrase)
+        # If we have a high confidence title, start playing
+        # without parsing additional properties.
+        if "playlist" not in phrase and t_confidence >= 95:
+            return (phrase, CPSMatchLevel.TITLE, {"title": title})
         # Parsed all properties, no high confidence property except perhaps album.
         # Do lower confidence returns now.
         if "on rhythmbox" in phrase:
@@ -365,12 +369,13 @@ class RhythmboxSkill(CommonPlaySkill):
         root = tree.getroot()
         for entry in root.iter('entry'):
             if entry.attrib["type"] == 'song':
-                if fuzz.ratio(selection, entry.find('genre').text) > 90 or selection in entry.find('genre').text:
+                if fuzz.ratio(selection, entry.find('genre').text) > 90 or selection.lower() in entry.find('genre').text.lower():
                     x = entry.find('location').text[7:]
                     y = unquote(x)
                     if isabs(y) == True:
                         uri = pathlib.Path(y).as_uri()
                         songs.append(uri)
+                        logger.info('Added ' + uri)
         random.shuffle(songs)
         for uri in songs:
             song = "rhythmbox-client --enqueue {}".format(uri)
