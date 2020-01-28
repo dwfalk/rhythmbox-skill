@@ -76,6 +76,9 @@ class RhythmboxSkill(CommonPlaySkill):
         self.add_event('mycroft.audio.service.next', self.handle_canned_next_song)
         self.add_event('mycroft.audio.service.prev', self.handle_canned_previous_song)
 
+        # Pre-build cache
+        self._build_cache()
+
     def CPS_match_query_phrase(self, phrase):
         if self.debug_mode:
             logger.info('CPS_match_query: ' + phrase)
@@ -95,7 +98,7 @@ class RhythmboxSkill(CommonPlaySkill):
         # If we have a high confidence genre, start playing
         # without parsing additional properties.
         if "playlist" not in phrase and g_confidence > 95:
-            return (phrase, CPSMatchLevel.MULTI_KEY, {"genre": genre})
+            return (phrase, CPSMatchLevel.CATEGORY, {"genre": genre})
         playlist, p_confidence = self._search_playlist(phrase)
         # If we have a high confidence playlist, start playing
         # without parsing additional properties.
@@ -195,16 +198,15 @@ class RhythmboxSkill(CommonPlaySkill):
         os.system("rhythmbox-client --previous")
 
     def _build_cache(self):
+        logger.info("Building Cache")
         tree = ET.parse(self.rhythmbox_database_xml)
         root = tree.getroot()
         for entry in root.iter('entry'):
             if entry.attrib["type"] == 'song':
-                genre = entry.find('genre').text
-                artist = entry.find('artist').text
-                title = entry.find('title').text
-                album = entry.find('album').text
-                self.genres.append(genre)
-                self.titles.append(title)
+                genre = entry.find('genre').text.lower()
+                artist = entry.find('artist').text.lower()
+                title = entry.find('title').text.lower()
+                album = entry.find('album').text.lower()
                 self.bys.append(title + " by " + artist)
                 self.album_bys.append(album + " album by " + artist)
                 if genre not in self.genres:
@@ -213,6 +215,8 @@ class RhythmboxSkill(CommonPlaySkill):
                     self.artists.append(artist)
                 if album not in self.albums:
                     self.albums.append(album)
+                if title not in self.titles:
+                    self.titles.append(title)
         tree = ET.parse(self.rhythmbox_playlist_xml)
         root = tree.getroot()
         for playlist in root.iter('playlist'):
