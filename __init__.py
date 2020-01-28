@@ -375,7 +375,6 @@ class RhythmboxSkill(CommonPlaySkill):
                     if isabs(y) == True:
                         uri = pathlib.Path(y).as_uri()
                         songs.append(uri)
-                        logger.info('Added ' + uri)
         random.shuffle(songs)
         for uri in songs:
             song = "rhythmbox-client --enqueue {}".format(uri)
