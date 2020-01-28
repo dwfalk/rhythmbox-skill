@@ -1,6 +1,7 @@
 # The MIT License (MIT)
 #
-# Copyright (c) 2019 Donald Falk
+# Copyright (c) 2020 Donald Falk, @gras64, Andrew Buis
+# Initial programing from Donald Falk here: https://github.com/dwfalk/rhythmbox-skill
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -39,7 +40,7 @@ import random
 import time
 import xml.etree.cElementTree as ET
 
-__author__ = 'dwfalk'
+__author__ = 'dwfalk, gras64, andrewbuis'
 
 logger = getLogger(__name__)
 
@@ -52,12 +53,13 @@ class RhythmboxSkill(CommonPlaySkill):
         self.rhythmbox_database_xml = expanduser('~/.local/share/rhythmbox/rhythmdb.xml')
         self.shuffle = False
         self.debug_mode = True
-        self.playlists = [] 
-        self.titles = [] 
-        self.artists = [] 
-        self.bys = [] 
+        self.playlists = []
+        self.titles = []
+        self.artists = []
+        self.bys = []
         self.albums = []
         self.album_bys = []
+        self.genres = []
 
     def initialize(self):
         stop_rhythmbox_intent = IntentBuilder("StopRhythmboxIntent"). \
@@ -65,7 +67,7 @@ class RhythmboxSkill(CommonPlaySkill):
         self.register_intent(stop_rhythmbox_intent, self.handle_stop_rhythmbox_intent)
 
         shuffle_rhythmbox_intent = IntentBuilder("ShuffleRhythmboxIntent"). \
-        require("ShuffleKeyword").optionally("RhythmboxKeyword").build()
+            require("ShuffleKeyword").optionally("RhythmboxKeyword").build()
         self.register_intent(shuffle_rhythmbox_intent, self.handle_shuffle_rhythmbox_intent)
 
         # Messages from the skill-playback-control / common Audio service
@@ -77,7 +79,7 @@ class RhythmboxSkill(CommonPlaySkill):
     def CPS_match_query_phrase(self, phrase):
         if self.debug_mode:
             logger.info('CPS_match_query: ' + phrase)
-        if not self.playlists and not self.titles and not self.artists and not self.albums:
+        if not self.playlists and not self.titles and not self.artists and not self.albums and not self.genres:
             self._build_cache()
         if "by" in phrase:
             if "album by" in phrase:
@@ -89,13 +91,38 @@ class RhythmboxSkill(CommonPlaySkill):
                     title, artist = self._search_by(phrase)
                     if title != "Null":
                         return (phrase, CPSMatchLevel.MULTI_KEY, {"by": artist, "title": title})
+        genre, g_confidence = self._search_genre(phrase)
+        # If we have a high confidence genre, start playing
+        # without parsing additional properties.
+        if "playlist" not in phrase and g_confidence > 95:
+            return (phrase, CPSMatchLevel.MULTI_KEY, {"genre": genre})
         playlist, p_confidence = self._search_playlist(phrase)
-        title, t_confidence = self._search_title(phrase)
+        # If we have a high confidence playlist, start playing
+        # without parsing additional properties.
+        if p_confidence >= 95:
+            return (phrase, CPSMatchLevel.CATEGORY, {"playlist": playlist})
         artist, a_confidence = self._search_artist(phrase)
+        # If we have a high confidence artist, start playing
+        # without parsing additional properties.
+        if "playlist" not in phrase and a_confidence >= 95:
+            return (phrase, CPSMatchLevel.ARTIST, {"artist": artist})
         album, b_confidence = self._search_album(phrase)
+        # If we have a high confidence album, start playing
+        # without parsing additional properties.
+        if "playlist" not in phrase and b_confidence >= 95:
+            return (phrase, CPSMatchLevel.GENERIC, {"album": album})
+        title, t_confidence = self._search_title(phrase)
+        # If we have a high confidence title, start playing
+        # without parsing additional properties.
+        if "playlist" not in phrase and t_confidence >= 95:
+            return (phrase, CPSMatchLevel.TITLE, {"title": title})
+        # Parsed all properties, no high confidence property except perhaps album.
+        # Do lower confidence returns now.
         if "on rhythmbox" in phrase:
             if "playlist" in phrase and p_confidence >= 65:
                 return (phrase, CPSMatchLevel.MULTI_KEY, {"playlist": playlist})
+            if g_confidence >= t_confidence and g_confidence >= p_confidence and g_confidence >= a_confidence and g_confidence >= 70:
+                return (phrase, CPSMatchLevel.MULTI_KEY, {"genre": genre})
             if t_confidence >= p_confidence and t_confidence >= a_confidence and t_confidence >= 70:
                 return (phrase, CPSMatchLevel.MULTI_KEY, {"title": title})
             if a_confidence >= p_confidence and a_confidence >= 70:
@@ -108,6 +135,8 @@ class RhythmboxSkill(CommonPlaySkill):
         else:
             if "playlist" in phrase and p_confidence >= 65:
                 return (phrase, CPSMatchLevel.CATEGORY, {"playlist": playlist})
+            if g_confidence >= t_confidence and g_confidence >= p_confidence and g_confidence >= a_confidence and g_confidence >= 70:
+                return (phrase, CPSMatchLevel.GENERIC, {"genre": genre})
             if self._general_artist_request(phrase) and a_confidence >= 75:
                 return (phrase, CPSMatchLevel.MULTI_KEY, {"artist": artist})
             if t_confidence >= p_confidence and t_confidence >= a_confidence and t_confidence >= 70:
@@ -131,6 +160,8 @@ class RhythmboxSkill(CommonPlaySkill):
             else:
                 self._play_by(data['by'], data['title'])
                 return None
+        if 'genre' in data:
+            self._play_genre(data['genre'])
         if 'title' in data:
             self._play_title(data['title'])
         if 'artist' in data:
@@ -163,17 +194,21 @@ class RhythmboxSkill(CommonPlaySkill):
     def handle_canned_previous_song(self, message):
         os.system("rhythmbox-client --previous")
 
-    def _build_cache(self):      
+    def _build_cache(self):
         tree = ET.parse(self.rhythmbox_database_xml)
         root = tree.getroot()
-        for entry in root.iter('entry'): 
+        for entry in root.iter('entry'):
             if entry.attrib["type"] == 'song':
+                genre = entry.find('genre').text
                 artist = entry.find('artist').text
                 title = entry.find('title').text
                 album = entry.find('album').text
+                self.genres.append(genre)
                 self.titles.append(title)
                 self.bys.append(title + " by " + artist)
                 self.album_bys.append(album + " album by " + artist)
+                if genre not in self.genres:
+                    self.genres.append(genre)
                 if artist not in self.artists:
                     self.artists.append(artist)
                 if album not in self.albums:
@@ -182,7 +217,7 @@ class RhythmboxSkill(CommonPlaySkill):
         root = tree.getroot()
         for playlist in root.iter('playlist'):
             self.playlists.append(playlist.get('name'))
-                
+
     def _general_artist_request(self, phrase):
         if "something by" in phrase:
             return True
@@ -275,7 +310,25 @@ class RhythmboxSkill(CommonPlaySkill):
             return album, confidence
         else:
             return "Null", 0
-       
+
+    def _search_genre(self, phrase):
+        utterance = phrase
+        strip_these = ["genre ", " on rhythmbox"]
+        for words in strip_these:
+            utterance = utterance.replace(words, " ")
+        utterance.lstrip()
+        if self.debug_mode:
+            logger.info("Genre Utterance: " + str(utterance))
+        probabilities = fuzz_process.extractOne(utterance, self.genres, scorer=fuzz.ratio)
+        if self.debug_mode:
+            logger.info("Genre Probabilities: " + str(probabilities))
+        if probabilities[1] > 70:
+            genre = probabilities[0]
+            confidence = probabilities[1]
+            return genre, confidence
+        else:
+            return "Null", 0
+
     def _search_by(self, phrase):
         utterance = phrase
         if self.debug_mode:
@@ -307,7 +360,34 @@ class RhythmboxSkill(CommonPlaySkill):
             return album, artist
         else:
             return "Null", "Null"
-         
+
+    def _play_genre(self, selection):
+        os.system("rhythmbox-client --stop")
+        os.system("rhythmbox-client --clear-queue")
+        songs = []
+        tree = ET.parse(self.rhythmbox_database_xml)
+        root = tree.getroot()
+        for entry in root.iter('entry'):
+            if entry.attrib["type"] == 'song':
+                if fuzz.ratio(selection, entry.find('genre').text) > 90 or selection.lower() in entry.find('genre').text.lower():
+                    x = entry.find('location').text[7:]
+                    y = unquote(x)
+                    if isabs(y) == True:
+                        uri = pathlib.Path(y).as_uri()
+                        songs.append(uri)
+        random.shuffle(songs)
+        for uri in songs:
+            song = "rhythmbox-client --enqueue {}".format(uri)
+            os.system(song)
+        if len(songs) > 0:
+            self.speak_dialog("playing " + selection + " genre")
+            time.sleep(1)
+            os.system("rhythmbox-client --play")
+        else:
+            self.speak_dialog("Sorry, I don't know how to play that, yet")
+            if self.debug_mode:
+                logger.info("Cannot play relative paths.")
+
     def _play_playlist(self, selection):
         songs = []
         tree = ET.parse(self.rhythmbox_playlist_xml)
