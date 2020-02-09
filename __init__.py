@@ -437,7 +437,7 @@ class RhythmboxSkill(CommonPlaySkill):
         root = tree.getroot()
         for entry in root.iter('entry'):
             if entry.attrib["type"] == 'song':
-                if selection == entry.find('title').text:
+                if selection == entry.find('title').text.lower():
                     os.system("rhythmbox-client --stop")
                     os.system("rhythmbox-client --clear-queue")
                     x = entry.find('location').text[7:]
@@ -520,8 +520,8 @@ class RhythmboxSkill(CommonPlaySkill):
         root = tree.getroot()
         for entry in root.iter('entry'):
             if entry.attrib["type"] == 'song':
-                if artist == entry.find('artist').text:
-                    if title == entry.find('title').text:
+                if artist == entry.find('artist').text.lower():
+                    if title == entry.find('title').text.lower():
                        os.system("rhythmbox-client --stop")
                        os.system("rhythmbox-client --clear-queue")
                        x = entry.find('location').text[7:]
@@ -544,8 +544,8 @@ class RhythmboxSkill(CommonPlaySkill):
         root = tree.getroot()
         for entry in root.iter('entry'):
             if entry.attrib["type"] == 'song':
-                if artist == entry.find('artist').text:
-                    if album == entry.find('album').text:
+                if artist == entry.find('artist').text.lower():
+                    if album == entry.find('album').text.lower():
                         x = entry.find('location').text[7:]
                         y = unquote(x)
                         if isabs(y) == True:
