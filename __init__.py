@@ -75,6 +75,12 @@ class RhythmboxSkill(CommonPlaySkill):
         self.add_event('mycroft.audio.service.resume', self.handle_canned_resume)
         self.add_event('mycroft.audio.service.next', self.handle_canned_next_song)
         self.add_event('mycroft.audio.service.prev', self.handle_canned_previous_song)
+        self.add_event('mycroft.audio.service.stop', self.handle_canned_stop)
+
+        # Pre-build cache
+        self._build_cache()
+        # Rebuild cache every hour
+        self.schedule_repeating_event(self._build_cache, None, 3600)
 
     def CPS_match_query_phrase(self, phrase):
         if self.debug_mode:
@@ -95,27 +101,27 @@ class RhythmboxSkill(CommonPlaySkill):
         # If we have a high confidence genre, start playing
         # without parsing additional properties.
         if "playlist" not in phrase and g_confidence > 95:
-            return (phrase, CPSMatchLevel.MULTI_KEY, {"genre": genre})
+            return (phrase, CPSMatchLevel.EXACT, {"genre": genre})
         playlist, p_confidence = self._search_playlist(phrase)
         # If we have a high confidence playlist, start playing
         # without parsing additional properties.
         if p_confidence >= 95:
-            return (phrase, CPSMatchLevel.CATEGORY, {"playlist": playlist})
+            return (phrase, CPSMatchLevel.EXACT, {"playlist": playlist})
         artist, a_confidence = self._search_artist(phrase)
         # If we have a high confidence artist, start playing
         # without parsing additional properties.
         if "playlist" not in phrase and a_confidence >= 95:
-            return (phrase, CPSMatchLevel.ARTIST, {"artist": artist})
+            return (phrase, CPSMatchLevel.EXACT, {"artist": artist})
         album, b_confidence = self._search_album(phrase)
         # If we have a high confidence album, start playing
         # without parsing additional properties.
         if "playlist" not in phrase and b_confidence >= 95:
-            return (phrase, CPSMatchLevel.GENERIC, {"album": album})
+            return (phrase, CPSMatchLevel.EXACT, {"album": album})
         title, t_confidence = self._search_title(phrase)
         # If we have a high confidence title, start playing
         # without parsing additional properties.
         if "playlist" not in phrase and t_confidence >= 95:
-            return (phrase, CPSMatchLevel.TITLE, {"title": title})
+            return (phrase, CPSMatchLevel.EXACT, {"title": title})
         # Parsed all properties, no high confidence property except perhaps album.
         # Do lower confidence returns now.
         if "on rhythmbox" in phrase:
@@ -134,7 +140,7 @@ class RhythmboxSkill(CommonPlaySkill):
             return None
         else:
             if "playlist" in phrase and p_confidence >= 65:
-                return (phrase, CPSMatchLevel.CATEGORY, {"playlist": playlist})
+                return (phrase, CPSMatchLevel.MULTI_KEY, {"playlist": playlist})
             if g_confidence >= t_confidence and g_confidence >= p_confidence and g_confidence >= a_confidence and g_confidence >= 70:
                 return (phrase, CPSMatchLevel.GENERIC, {"genre": genre})
             if self._general_artist_request(phrase) and a_confidence >= 75:
@@ -172,6 +178,7 @@ class RhythmboxSkill(CommonPlaySkill):
             self._play_album(data['album'])
 
     def handle_stop_rhythmbox_intent(self, message):
+        logger.info("Stop Rhythmbox")
         os.system("pkill rhythmbox")
         self.speak_dialog("stop.rhythmbox")
 
@@ -184,6 +191,11 @@ class RhythmboxSkill(CommonPlaySkill):
 
     def handle_canned_pause(self, message):
         os.system("rhythmbox-client --pause")
+    
+    def handle_canned_stop(self, message):        
+        logger.info("Stop Rhythmbox")
+        os.system("pkill rhythmbox")
+        self.speak_dialog("stop.rhythmbox")
 
     def handle_canned_resume(self, message):
         os.system("rhythmbox-client --play")
@@ -195,16 +207,15 @@ class RhythmboxSkill(CommonPlaySkill):
         os.system("rhythmbox-client --previous")
 
     def _build_cache(self):
+        logger.info("Building Cache")
         tree = ET.parse(self.rhythmbox_database_xml)
         root = tree.getroot()
         for entry in root.iter('entry'):
             if entry.attrib["type"] == 'song':
-                genre = entry.find('genre').text
-                artist = entry.find('artist').text
-                title = entry.find('title').text
-                album = entry.find('album').text
-                self.genres.append(genre)
-                self.titles.append(title)
+                genre = entry.find('genre').text.lower()
+                artist = entry.find('artist').text.lower()
+                title = entry.find('title').text.lower()
+                album = entry.find('album').text.lower()
                 self.bys.append(title + " by " + artist)
                 self.album_bys.append(album + " album by " + artist)
                 if genre not in self.genres:
@@ -213,6 +224,8 @@ class RhythmboxSkill(CommonPlaySkill):
                     self.artists.append(artist)
                 if album not in self.albums:
                     self.albums.append(album)
+                if title not in self.titles:
+                    self.titles.append(title)
         tree = ET.parse(self.rhythmbox_playlist_xml)
         root = tree.getroot()
         for playlist in root.iter('playlist'):
@@ -369,7 +382,7 @@ class RhythmboxSkill(CommonPlaySkill):
         root = tree.getroot()
         for entry in root.iter('entry'):
             if entry.attrib["type"] == 'song':
-                if fuzz.ratio(selection, entry.find('genre').text) > 90 or selection.lower() in entry.find('genre').text.lower():
+                if fuzz.ratio(selection.lower(), entry.find('genre').text.lower()) > 80 or selection.lower() in entry.find('genre').text.lower():
                     x = entry.find('location').text[7:]
                     y = unquote(x)
                     if isabs(y) == True:
@@ -393,7 +406,7 @@ class RhythmboxSkill(CommonPlaySkill):
         tree = ET.parse(self.rhythmbox_playlist_xml)
         root = tree.getroot()
         for playlist in root.iter('playlist'):
-            name = playlist.get('name') 
+            name = playlist.get('name')
             if name == selection:
                 os.system("rhythmbox-client --stop")
                 os.system("rhythmbox-client --clear-queue")
@@ -450,7 +463,10 @@ class RhythmboxSkill(CommonPlaySkill):
         root = tree.getroot()
         for entry in root.iter('entry'):
             if entry.attrib["type"] == 'song':
-                if fuzz.ratio(selection, entry.find('artist').text) > 90:
+                if selection.lower() in entry.find('artist').text.lower():
+                    x = entry.find('location').text[7:]
+                    y = unquote(x)
+                if fuzz.ratio(selection.lower(), entry.find('artist').text.lower()) > 80:
                     x = entry.find('location').text[7:]
                     y = unquote(x)
                     if isabs(y) == True:
@@ -480,7 +496,7 @@ class RhythmboxSkill(CommonPlaySkill):
         root = tree.getroot()
         for entry in root.iter('entry'):
             if entry.attrib["type"] == 'song':
-                if fuzz.ratio(selection, entry.find('album').text) > 90:
+                if fuzz.ratio(selection.lower(), entry.find('album').text.lower()) > 90:
                     x = entry.find('location').text[7:]
                     y = unquote(x)
                     if isabs(y) == True:
