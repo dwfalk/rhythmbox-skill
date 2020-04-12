@@ -39,4 +39,4 @@ apt install rhythmbox
 #skill
 
 To install:
-~/mycroft-core/bin/mycroft-msm install https://github.com/AndrewBuis/rhythmbox-player
+~/mycroft-core/bin/mycroft-msm install https://github.com/dwfalk/rhythmbox-skill
