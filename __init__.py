@@ -28,7 +28,6 @@ from adapt.intent import IntentBuilder
 
 from mycroft.skills.core import MycroftSkill
 from mycroft.util.log import getLogger
-from mycroft.audio import wait_while_speaking
 from mycroft.skills.common_play_skill import CommonPlaySkill, CPSMatchLevel
 from os.path import expanduser, isabs
 from urllib.parse import unquote
