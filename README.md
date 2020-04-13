@@ -8,7 +8,7 @@ Let Mycroft help you control Rhythmbox. When asked Mycroft interfaces with Rhyth
 * "play **" - plays closest match (genre/artist/album/song)
 * "play ** playlist" - by playlist
 * "play something by **" - by artist
-* "shuffle ** playlist"
+* "shuffle **" - plays closest match (playlist/album)
 * "pause"
 * "resume"
 * "next song"
@@ -17,6 +17,7 @@ Let Mycroft help you control Rhythmbox. When asked Mycroft interfaces with Rhyth
 * "play some music by Huey Lewis and the News"
 * "play Feelin' Alright by Joe Cocker"
 * "play Greatist Hits album by Heart"
+* "shuffle Greatest Hits album by Fleetwood Mac"
 
 ## Credits 
 @dwfalk - Base project

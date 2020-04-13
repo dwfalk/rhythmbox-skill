@@ -184,9 +184,19 @@ class RhythmboxSkill(CommonPlaySkill):
     def handle_shuffle_rhythmbox_intent(self, message):
         self.shuffle = True
         utterance = message.utterance_remainder()
-        playlist, confidence = self._search_playlist(utterance)
-        if confidence > 75: 
+        if self.debug_mode:
+            logger.info('Shuffle: ' + utterance)
+        if "album by" in utterance:
+            album, artist = self._search_album_by(utterance)
+            if album != "Null":
+                self._play_album_by(artist, album)
+                return None
+        playlist, p_confidence = self._search_playlist(utterance)
+        album, b_confidence = self._search_album(utterance)
+        if p_confidence > 75: 
             self._play_playlist(playlist)
+        elif b_confidence > 75: 
+            self._play_album(album)
 
     def handle_canned_pause(self, message):
         os.system("rhythmbox-client --pause")
@@ -490,18 +500,29 @@ class RhythmboxSkill(CommonPlaySkill):
             selection = selection.replace(words, " ")
         os.system("rhythmbox-client --stop")
         os.system("rhythmbox-client --clear-queue")
+        tracks = {}
         songs = []
         tree = ET.parse(self.rhythmbox_database_xml)
         root = tree.getroot()
         for entry in root.iter('entry'):
             if entry.attrib["type"] == 'song':
                 if fuzz.ratio(selection.lower(), entry.find('album').text.lower()) > 90:
+                    t = entry.find('track-number').text
+                    try:
+                        t = int(t)
+                    except ValueError:
+                        t = 0  
                     x = entry.find('location').text[7:]
                     y = unquote(x)
                     if isabs(y) == True:
                         uri = pathlib.Path(y).as_uri()
-                        songs.append(uri)
-        random.shuffle(songs)
+                        tracks[uri] = t
+        if self.shuffle:
+            for uri, t in tracks.items():
+                songs.append(uri)
+                random.shuffle(songs)
+        else:
+            songs = sorted(tracks, key=tracks.__getitem__)
         for uri in songs:
             song = "rhythmbox-client --enqueue {}".format(uri)
             os.system(song)
@@ -521,23 +542,24 @@ class RhythmboxSkill(CommonPlaySkill):
             if entry.attrib["type"] == 'song':
                 if artist == entry.find('artist').text.lower():
                     if title == entry.find('title').text.lower():
-                       os.system("rhythmbox-client --stop")
-                       os.system("rhythmbox-client --clear-queue")
-                       x = entry.find('location').text[7:]
-                       y = unquote(x)
-                       if isabs(y) == True:
-                          uri = pathlib.Path(y).as_uri()
-                          song = "rhythmbox-client --enqueue {}".format(uri)
-                          os.system(song)
-                          os.system("rhythmbox-client --play")
-                       else:
-                          self.speak_dialog("Sorry, I don't know how to play that, yet")
-                          if self.debug_mode:
-                             logger.info("Cannot play relative paths.")
+                        os.system("rhythmbox-client --stop")
+                        os.system("rhythmbox-client --clear-queue")
+                        x = entry.find('location').text[7:]
+                        y = unquote(x)
+                        if isabs(y) == True:
+                            uri = pathlib.Path(y).as_uri()
+                            song = "rhythmbox-client --enqueue {}".format(uri)
+                            os.system(song)
+                            os.system("rhythmbox-client --play")
+                        else:
+                            self.speak_dialog("Sorry, I don't know how to play that, yet")
+                            if self.debug_mode:
+                                logger.info("Cannot play relative paths.")
 
     def _play_album_by(self, artist, album):
         os.system("rhythmbox-client --stop")
         os.system("rhythmbox-client --clear-queue")
+        tracks = {}
         songs = []
         tree = ET.parse(self.rhythmbox_database_xml)
         root = tree.getroot()
@@ -545,12 +567,22 @@ class RhythmboxSkill(CommonPlaySkill):
             if entry.attrib["type"] == 'song':
                 if artist == entry.find('artist').text.lower():
                     if album == entry.find('album').text.lower():
+                        t = entry.find('track-number').text
+                        try:
+                            t = int(t)
+                        except ValueError:
+                            t = 0  
                         x = entry.find('location').text[7:]
                         y = unquote(x)
                         if isabs(y) == True:
                             uri = pathlib.Path(y).as_uri()
-                            songs.append(uri)
-        random.shuffle(songs)
+                            tracks[uri] = t
+        if self.shuffle:
+            for uri, t in tracks.items():
+                songs.append(uri)
+                random.shuffle(songs)
+        else:
+            songs = sorted(tracks, key=tracks.__getitem__)
         for uri in songs:
             song = "rhythmbox-client --enqueue {}".format(uri)
             os.system(song)
