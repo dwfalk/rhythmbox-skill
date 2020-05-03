@@ -9,6 +9,7 @@ Let Mycroft help you control Rhythmbox. When asked Mycroft interfaces with Rhyth
 * "play ** playlist" - by playlist
 * "play something by **" - by artist
 * "shuffle **" - plays closest match (playlist/album)
+* "refresh Rhythmbox database" - pull in any recently added playlists
 * "pause"
 * "resume"
 * "next song"
