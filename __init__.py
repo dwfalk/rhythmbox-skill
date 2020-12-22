@@ -134,7 +134,7 @@ class RhythmboxSkill(CommonPlaySkill):
             return (phrase, CPSMatchLevel.EXACT, {"title": title, "confidence": confidence})
         # Parsed all properties, no high confidence property except perhaps album.
         # Do lower confidence returns now.
-        if "on rhythmbox" in phrase:
+        if "on rhythmbox" in phrase or "on rhythm box" in phrase:
             ordered = sorted(ordering, key=ordering.__getitem__, reverse=True)
             if "playlist" == ordered[0] and ordering["playlist"] > 65:
                 return (phrase, CPSMatchLevel.MULTI_KEY, {"playlist": playlist, "confidence": ordering["playlist"]})
@@ -288,7 +288,7 @@ class RhythmboxSkill(CommonPlaySkill):
 
     def _search_playlist(self, phrase):
         utterance = phrase + " "
-        strip_these = ["playlist ", "on rhythmbox "]
+        strip_these = ["playlist ", "on rhythmbox ", "on rhythm box "]
         for words in strip_these:
             utterance = utterance.replace(words, " ")
         utterance.lstrip()
@@ -306,7 +306,7 @@ class RhythmboxSkill(CommonPlaySkill):
 
     def _search_title(self, phrase):
         utterance = phrase + " "
-        strip_these = ["title ", "song ", "on rhythmbox "]
+        strip_these = ["title ", "song ", "on rhythmbox ", "on rhythm box "]
         for words in strip_these:
             utterance = utterance.replace(words, " ")
         utterance.lstrip()
@@ -324,7 +324,7 @@ class RhythmboxSkill(CommonPlaySkill):
 
     def _search_artist(self, phrase):
         utterance = phrase + " "
-        strip_these = ["some ", "something ", "music ", "songs ", "tunes ", "by ", "from ", "artist ", "on rhythmbox "]
+        strip_these = ["some ", "something ", "music ", "songs ", "tunes ", "by ", "from ", "artist ", "on rhythmbox ", "on rhythm box "]
         for words in strip_these:
             utterance = utterance.replace(words, " ")
         utterance.lstrip()
@@ -342,7 +342,7 @@ class RhythmboxSkill(CommonPlaySkill):
 
     def _search_album(self, phrase):
         utterance = phrase + " "
-        strip_these = ["album ", "on rhythmbox "]
+        strip_these = ["album ", "on rhythmbox ", "on rhythm box "]
         for words in strip_these:
             utterance = utterance.replace(words, " ")
         utterance.lstrip()
@@ -360,7 +360,7 @@ class RhythmboxSkill(CommonPlaySkill):
 
     def _search_genre(self, phrase):
         utterance = phrase + " "
-        strip_these = ["genre ", "on rhythmbox "]
+        strip_these = ["genre ", "tunes ", "some ", "songs ", "on rhythmbox ", "on rhythm box "]
         for words in strip_these:
             utterance = utterance.replace(words, " ")
         utterance.lstrip()
@@ -394,7 +394,11 @@ class RhythmboxSkill(CommonPlaySkill):
             return "Null", "Null", 0
 
     def _search_album_by(self, phrase):
-        utterance = phrase
+        if "album" in phrase:
+            utterance = phrase.replace("album", " ")
+            utterance = utterance.replace(" by ", " album by ")
+        else:
+            utterance = phrase
         if self.debug_mode:
             logger.info("Album By Utterance: " + str(utterance))
         probabilities = fuzz_process.extractOne(utterance, self.album_bys, scorer=fuzz.ratio)
@@ -463,7 +467,7 @@ class RhythmboxSkill(CommonPlaySkill):
 
     def _play_artist(self, selection, confidence):
         selection = selection + " "
-        strip_these = ["some ", "something ", "music ", "songs ", "tunes ", "by ", "from ", "artist ", "on rhythmbox ", "play "]
+        strip_these = ["some ", "something ", "music ", "songs ", "tunes ", "by ", "from ", "artist ", "on rhythmbox ", "on rhythm box ", "play "]
         for words in strip_these:
             selection = selection.replace(words, " ")
         os.system("rhythmbox-client --stop")
@@ -473,9 +477,6 @@ class RhythmboxSkill(CommonPlaySkill):
         root = tree.getroot()
         for entry in root.iter('entry'):
             if entry.attrib["type"] == 'song':
-                if selection.lower() in entry.find('artist').text.lower():
-                    x = entry.find('location').text[7:]
-                    y = unquote(x)
                 if fuzz.ratio(selection.lower(), entry.find('artist').text.lower()) > 80:
                     x = entry.find('location').text[7:]
                     y = unquote(x)
@@ -497,7 +498,7 @@ class RhythmboxSkill(CommonPlaySkill):
 
     def _play_album(self, selection, confidence):
         selection = selection + " "
-        strip_these = ["album ", "on rhythmbox ", "play "]
+        strip_these = ["album ", "on rhythmbox ", "on rhythm box ", "play "]
         for words in strip_these:
             selection = selection.replace(words, " ")
         os.system("rhythmbox-client --stop")
